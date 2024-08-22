@@ -1,6 +1,9 @@
-package com.aura.ui.data
+import com.aura.ui.data.Account
 
-class User {
-    var name: String = "";
-    var password: String = "";
-}
+data class User(
+    val id: String,
+    val firstname: String,
+    val lastname: String,
+    val password: String,
+    val accounts: List<Account>,
+)

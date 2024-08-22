@@ -2,8 +2,9 @@ package com.aura.ui.login
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
-import android.widget.EditText
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.ViewModelProvider
@@ -14,13 +15,9 @@ import com.aura.ui.viewModel.UserViewModel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
-/**
- * The login activity for the app.
- */
 class LoginActivity : ComponentActivity() {
 
   private lateinit var binding: ActivityLoginBinding
-
   private lateinit var userViewModel: UserViewModel
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,16 +26,11 @@ class LoginActivity : ComponentActivity() {
     binding = ActivityLoginBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
-    // Initialize ViewModel using ViewModelProvider
     userViewModel = ViewModelProvider(this).get(UserViewModel::class.java)
 
-    val login = binding.login
-    val loading = binding.loading
-
-    // Observe form validity
     lifecycleScope.launch {
       userViewModel.isFormValid.collect { isValid ->
-        login.isEnabled = isValid
+        binding.login.isEnabled = isValid
       }
     }
 
@@ -50,13 +42,33 @@ class LoginActivity : ComponentActivity() {
       userViewModel.onPasswordChanged(text.toString())
     }
 
-    login.setOnClickListener {
-      loading.visibility = View.VISIBLE
+    binding.login.setOnClickListener {
+      binding.loading.visibility = View.VISIBLE
+      userViewModel.login()
+      binding.login.isEnabled = false
+    }
 
-      val intent = Intent(this@LoginActivity, HomeActivity::class.java)
-      startActivity(intent)
+    // Observe the login result
+    lifecycleScope.launch {
+      userViewModel.loginResult.collect { loginResponse ->
 
-      finish()
+
+        if (loginResponse?.granted == true) {
+          binding.loading.visibility = View.GONE
+          Log.d("LoginActivity", "Login successful, navigating to HomeActivity")
+          val intent = Intent(this@LoginActivity, HomeActivity::class.java)
+          intent.putExtra("USER_ID", binding.identifier.text.toString())
+          startActivity(intent)
+          finish()
+        } else if (loginResponse?.granted == false) {
+          binding.loading.visibility = View.GONE
+          binding.login.isEnabled = true
+          Toast.makeText(this@LoginActivity, "Login failed: Invalid credentials", Toast.LENGTH_LONG).show()
+        }
+
+        // Reset loginResult to avoid double handling
+        userViewModel.resetLoginResult()
+      }
     }
   }
 }
