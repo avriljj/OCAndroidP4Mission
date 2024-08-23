@@ -2,9 +2,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.aura.ui.data.Account
+import com.aura.ui.data.account.Account
+import com.aura.ui.data.account.AccountState
 import com.aura.ui.data.network.ApiClient
 import com.aura.ui.data.network.UserApiService
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.Response
 
@@ -12,35 +16,29 @@ class AccountViewModel : ViewModel() {
 
     private val userApiService: UserApiService = ApiClient.apiService
 
-    // LiveData to hold a list of account information
-    private val _accounts = MutableLiveData<List<Account>>()
-    val accounts: LiveData<List<Account>> = _accounts
-
     // LiveData to hold loading state
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
 
-    // LiveData to hold error messages
-    private val _error = MutableLiveData<String?>()
-    val error: LiveData<String?> = _error
+    private val _accountState = MutableStateFlow<AccountState>(AccountState.Idle)
+    val accountState: StateFlow<AccountState> = _accountState
 
-    // Function to fetch account information by user ID
     fun getAccountsByUserId(userId: String) {
         viewModelScope.launch {
-            _loading.value = true
-            _error.value = null
+            _accountState.value = AccountState.Loading // Début du chargement
             try {
                 val response: Response<List<Account>> = userApiService.getAccounts(userId)
                 if (response.isSuccessful) {
-                    _accounts.value = response.body()
+                    val accounts = response.body() ?: emptyList()
+                    _accountState.value = AccountState.Success(accounts)
                 } else {
-                    _error.value = "Error: ${response.code()} - ${response.message()}"
+                    _accountState.value = AccountState.Error("Error: ${response.code()} - ${response.message()}")
                 }
             } catch (e: Exception) {
-                _error.value = "Exception: ${e.message}"
-            } finally {
-                _loading.value = false
+                _accountState.value = AccountState.Error("Exception: ${e.message}")
             }
         }
     }
+
+
 }

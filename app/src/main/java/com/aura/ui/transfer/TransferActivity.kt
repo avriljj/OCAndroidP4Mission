@@ -1,7 +1,6 @@
 package com.aura.ui.transfer
 
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +13,7 @@ import kotlinx.coroutines.launch
 
 import android.app.Activity
 import android.view.View
+import com.aura.ui.data.transfer.TransferState
 
 
 class TransferActivity : AppCompatActivity() {
@@ -60,34 +60,29 @@ class TransferActivity : AppCompatActivity() {
             transferViewModel.performTransfer(userId!!, recipientText, amountText)
         }
 
-        // Observe loading state to manage button and progress bar visibility
         lifecycleScope.launch {
-            transferViewModel.isLoading.collectLatest { isLoading ->
-              //  binding.transfer.isEnabled = !isLoading
-                binding.loading.visibility = if (isLoading) View.VISIBLE else View.GONE
-            }
-        }
-
-        // Observe the transfer result to handle success or failure
-        lifecycleScope.launch {
-            transferViewModel.transferResult.collectLatest { isSuccessful ->
-                if (isSuccessful == true) {
-                    Toast.makeText(this@TransferActivity, "Transfer successful", Toast.LENGTH_SHORT).show()
-                    setResult(Activity.RESULT_OK)
-                    finish()
-                } else if (isSuccessful == false) {
-                    binding.transfer.isEnabled = false
-                    binding.loading.visibility = View.GONE
-                }
-            }
-        }
-
-        // Observe error messages and display them when available
-        lifecycleScope.launch {
-            transferViewModel.errorMessage.collectLatest { errorMessage ->
-                errorMessage?.let {
-                    Toast.makeText(this@TransferActivity, it, Toast.LENGTH_LONG).show()
-                    binding.transfer.isEnabled = false
+            transferViewModel.transferState.collectLatest { state ->
+                when (state) {
+                    is TransferState.Idle -> {
+                        binding.transfer.isEnabled = true
+                        binding.loading.visibility = View.GONE
+                    }
+                    is TransferState.Loading -> {
+                        binding.transfer.isEnabled = false
+                        binding.loading.visibility = View.VISIBLE
+                    }
+                    is TransferState.Success -> {
+                        binding.transfer.isEnabled = true
+                        binding.loading.visibility = View.GONE
+                        Toast.makeText(this@TransferActivity, state.message, Toast.LENGTH_SHORT).show()
+                        setResult(Activity.RESULT_OK)
+                        finish()
+                    }
+                    is TransferState.Error -> {
+                        binding.transfer.isEnabled = true
+                        binding.loading.visibility = View.GONE
+                        Toast.makeText(this@TransferActivity, state.errorMessage, Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }

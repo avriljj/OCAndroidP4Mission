@@ -1,12 +1,12 @@
 package com.aura.ui.viewModel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aura.ui.data.network.ApiClient
 import com.aura.ui.data.network.UserApiService
 import com.aura.ui.data.transfer.Transfer
 import com.aura.ui.data.transfer.TransferResult
+import com.aura.ui.data.transfer.TransferState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,25 +18,14 @@ class TransferViewModel : ViewModel() {
 
     private val userApiService: UserApiService = ApiClient.apiService
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _transferResult = MutableStateFlow<Boolean?>(null)
-    val transferResult: StateFlow<Boolean?> = _transferResult.asStateFlow()
-
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
     private val _isFormValid = MutableStateFlow(false)
     val isFormValid: StateFlow<Boolean> = _isFormValid.asStateFlow()
 
     private val recipient = MutableStateFlow("")
     private val amount = MutableStateFlow("")
 
-    init {
-        // Initial validation to ensure button is disabled on start
-        validateForm()
-    }
+    private val _transferState = MutableStateFlow<TransferState>(TransferState.Idle)
+    val transferState: StateFlow<TransferState> = _transferState
 
     fun onRecipientChanged(newRecipient: String) {
         recipient.value = newRecipient
@@ -49,21 +38,24 @@ class TransferViewModel : ViewModel() {
     }
 
     private fun validateForm() {
-        _isFormValid.value = recipient.value.isNotBlank() && amount.value.isNotBlank()
+        _transferState.value = if (recipient.value.isNotBlank() && amount.value.isNotBlank()) {
+            TransferState.Idle
+        } else {
+            TransferState.Error("Recipient and amount must not be empty.")
+        }
     }
     // Perform the transfer operation
     fun performTransfer(senderId: String, recipient: String, amount: String) {
 
         val amountDouble = amount.toDoubleOrNull()
+
         if (amountDouble == null || amountDouble <= 0) {
-            _errorMessage.value = "Invalid amount: $amount"
-            _transferResult.value = false
+            _transferState.value = TransferState.Error("Invalid amount: $amount")
             return
         }
 
         viewModelScope.launch {
-            _isLoading.value = true  // Start loading
-            _errorMessage.value = null // Reset error message
+            _transferState.value = TransferState.Loading // Start loading
             try {
                 val response: Response<TransferResult> = userApiService.transfer(
                     Transfer(
@@ -74,19 +66,19 @@ class TransferViewModel : ViewModel() {
                 )
 
                 if (response.isSuccessful) {
-                    _transferResult.value = true
+                    _transferState.value = TransferState.Success("Transfer successful")
                 } else {
-                    _transferResult.value = false
-                    _errorMessage.value = "Transfer failed with code: ${response.code()}"
+                    _transferState.value = TransferState.Error("Transfer failed with code: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _transferResult.value = false
-                _errorMessage.value = "Transfer failed: ${e.message}"
+                _transferState.value = TransferState.Error("Transfer failed: ${e.message}")
             } finally {
-                _isLoading.value = false  // Stop loading
-            }
+                _transferState.value = TransferState.Idle  // Stop loading or reset to idle state
         }
-    }
+        }
+
+        }
+
 }
 
 

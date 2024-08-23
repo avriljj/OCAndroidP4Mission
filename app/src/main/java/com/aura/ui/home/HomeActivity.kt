@@ -13,10 +13,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.aura.R
 import com.aura.databinding.ActivityHomeBinding
+import com.aura.ui.data.account.AccountState
 import com.aura.ui.login.LoginActivity
 import com.aura.ui.transfer.TransferActivity
+import kotlinx.coroutines.flow.collectLatest
 
 
 /**
@@ -42,7 +45,7 @@ class HomeActivity : AppCompatActivity() {
         if (!userId.isNullOrEmpty()) {
           loadAccountsData(userId)
         } else {
-          Toast.makeText(this, "User ID is missing. Cannot refresh balance.", Toast.LENGTH_LONG).show()
+          Toast.makeText(this, "com.aura.ui.data.account.User ID is missing. Cannot refresh balance.", Toast.LENGTH_LONG).show()
         }
       }
     }
@@ -68,6 +71,7 @@ class HomeActivity : AppCompatActivity() {
     // Ensure userId is not null or empty
     if (!userId.isNullOrEmpty()) {
       // Load the accounts data initially
+      observeAccountState()
       loadAccountsData(userId)
 
       // Set a click listener on the reload button to reload data
@@ -82,18 +86,19 @@ class HomeActivity : AppCompatActivity() {
 
     } else {
       // Handle the case where userId is null or empty
-      Toast.makeText(this, "User ID is missing", Toast.LENGTH_LONG).show()
+      Toast.makeText(this, "com.aura.ui.data.account.User ID is missing", Toast.LENGTH_LONG).show()
     }
   }
 
   /**
    * Function to load accounts data.
    */
-  private fun loadAccountsData(userId: String) {
+  /*private fun loadAccountsData(userId: String) {
     binding.loadingMainScreen.visibility = View.VISIBLE
 
     // Trigger the API call to fetch accounts
     accountViewModel.getAccountsByUserId(userId)
+
 
     // Observe the accounts LiveData
     accountViewModel.accounts.observe(this, Observer { accounts ->
@@ -115,6 +120,44 @@ class HomeActivity : AppCompatActivity() {
         binding.loadingMainScreen.visibility = View.VISIBLE
       }
     })
+  }
+  */
+
+  private fun loadAccountsData(userId: String) {
+    accountViewModel.getAccountsByUserId(userId)
+  }
+
+  private fun observeAccountState() {
+    lifecycleScope.launchWhenStarted {
+      accountViewModel.accountState.collectLatest { state ->
+        when (state) {
+          is AccountState.Loading -> {
+            binding.loadingMainScreen.visibility = View.VISIBLE
+            binding.balance.visibility = View.GONE
+            binding.loginMainScreen.visibility = View.GONE
+          }
+          is AccountState.Success -> {
+            binding.loadingMainScreen.visibility = View.GONE
+            val mainAccount = state.accounts.find { it.main }
+            if (mainAccount != null) {
+              binding.balance.text = "${mainAccount.balance}€"
+              binding.balance.visibility = View.VISIBLE
+            } else {
+              Toast.makeText(this@HomeActivity, "No main account found", Toast.LENGTH_LONG).show()
+              binding.loginMainScreen.visibility = View.VISIBLE
+            }
+          }
+          is AccountState.Error -> {
+            binding.loadingMainScreen.visibility = View.GONE
+            Toast.makeText(this@HomeActivity, state.message, Toast.LENGTH_LONG).show()
+            binding.loginMainScreen.visibility = View.VISIBLE
+          }
+          AccountState.Idle -> {
+            // Peut rester vide ou gérer l'état initial
+          }
+        }
+      }
+    }
   }
 
   override fun onCreateOptionsMenu(menu: Menu?): Boolean {

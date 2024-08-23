@@ -1,7 +1,7 @@
 package com.aura.ui.data.network
 import LoginRequest
 import LoginResponse
-import com.aura.ui.data.Account
+import com.aura.ui.data.account.Account
 import com.aura.ui.data.transfer.Transfer
 import com.aura.ui.data.transfer.TransferResult
 

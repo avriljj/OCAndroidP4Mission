@@ -1,4 +1,4 @@
-import com.aura.ui.data.Account
+package com.aura.ui.data.account
 
 data class User(
     val id: String,

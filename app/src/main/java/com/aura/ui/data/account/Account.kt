@@ -1,4 +1,4 @@
-package com.aura.ui.data
+package com.aura.ui.data.account
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
