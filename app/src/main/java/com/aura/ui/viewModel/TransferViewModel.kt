@@ -38,7 +38,7 @@ class TransferViewModel : ViewModel() {
     }
 
     private fun validateForm() {
-        _transferState.value = if (recipient.value.isNotBlank() && amount.value.isNotBlank()) {
+        _transferState.value = if (recipient.value.isNotBlank() || amount.value.isNotBlank()) {
             TransferState.Idle
         } else {
             TransferState.Error("Recipient and amount must not be empty.")

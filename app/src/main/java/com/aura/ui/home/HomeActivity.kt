@@ -20,6 +20,7 @@ import com.aura.ui.data.account.AccountState
 import com.aura.ui.login.LoginActivity
 import com.aura.ui.transfer.TransferActivity
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 
 /**
@@ -128,7 +129,7 @@ class HomeActivity : AppCompatActivity() {
   }
 
   private fun observeAccountState() {
-    lifecycleScope.launchWhenStarted {
+    lifecycleScope.launch {
       accountViewModel.accountState.collectLatest { state ->
         when (state) {
           is AccountState.Loading -> {
@@ -154,6 +155,9 @@ class HomeActivity : AppCompatActivity() {
           }
           AccountState.Idle -> {
             // Peut rester vide ou gérer l'état initial
+            binding.loadingMainScreen.visibility = View.GONE
+            binding.balance.visibility = View.VISIBLE
+            binding.loginMainScreen.visibility = View.GONE
           }
         }
       }
