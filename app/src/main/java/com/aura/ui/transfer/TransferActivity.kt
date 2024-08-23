@@ -95,7 +95,8 @@ class TransferActivity : AppCompatActivity() {
             transferViewModel.transferState.collectLatest { state ->
                 when (state) {
                     is TransferState.Idle -> {
-                        binding.transfer.isEnabled = false
+                        //binding.transfer.isEnabled = false
+                        binding.transfer.isEnabled = transferViewModel.isFormValid.value // Check form validity
                         binding.loading.visibility = View.GONE
                     }
                     is TransferState.Loading -> {
