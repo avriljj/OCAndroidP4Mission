@@ -9,17 +9,15 @@ import com.aura.ui.data.transfer.TransferResult
 import com.aura.ui.data.transfer.TransferState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.Response
-
 
 class TransferViewModel : ViewModel() {
 
     private val userApiService: UserApiService = ApiClient.apiService
 
     private val _isFormValid = MutableStateFlow(false)
-    val isFormValid: StateFlow<Boolean> = _isFormValid.asStateFlow()
+    val isFormValid: StateFlow<Boolean> = _isFormValid
 
     private val recipient = MutableStateFlow("")
     private val amount = MutableStateFlow("")
@@ -38,33 +36,22 @@ class TransferViewModel : ViewModel() {
     }
 
     private fun validateForm() {
-        _transferState.value = if (recipient.value.isNotBlank() || amount.value.isNotBlank()) {
-            TransferState.Idle
-        } else {
-            TransferState.Error("Recipient and amount must not be empty.")
-        }
+        _isFormValid.value = recipient.value.isNotBlank() && amount.value.isNotBlank()
     }
-    // Perform the transfer operation
+
     fun performTransfer(senderId: String, recipient: String, amount: String) {
-
         val amountDouble = amount.toDoubleOrNull()
-
         if (amountDouble == null || amountDouble <= 0) {
             _transferState.value = TransferState.Error("Invalid amount: $amount")
             return
         }
 
         viewModelScope.launch {
-            _transferState.value = TransferState.Loading // Start loading
+            _transferState.value = TransferState.Loading
             try {
                 val response: Response<TransferResult> = userApiService.transfer(
-                    Transfer(
-                        sender = senderId,
-                        recipient = recipient,
-                        amount = amountDouble
-                    )
+                    Transfer(sender = senderId, recipient = recipient, amount = amountDouble)
                 )
-
                 if (response.isSuccessful) {
                     _transferState.value = TransferState.Success("Transfer successful")
                 } else {
@@ -73,12 +60,8 @@ class TransferViewModel : ViewModel() {
             } catch (e: Exception) {
                 _transferState.value = TransferState.Error("Transfer failed: ${e.message}")
             } finally {
-                _transferState.value = TransferState.Idle  // Stop loading or reset to idle state
+                _transferState.value = TransferState.Idle
+            }
         }
-        }
-
-        }
-
+    }
 }
-
-

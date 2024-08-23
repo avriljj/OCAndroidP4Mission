@@ -12,14 +12,31 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 import android.app.Activity
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.view.View
+import androidx.lifecycle.ViewModelProvider
 import com.aura.ui.data.transfer.TransferState
+import com.aura.ui.viewModel.UserViewModel
+import com.google.android.material.snackbar.Snackbar
 
 
 class TransferActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityTransferBinding
-    private val transferViewModel: TransferViewModel by viewModels()
+    private lateinit var transferViewModel: TransferViewModel
+
+    fun Context.isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
+        return networkCapabilities != null && networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    fun showSnackbar(view: View, message: String) {
+        Snackbar.make(view, message, Snackbar.LENGTH_LONG).show()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,16 +44,23 @@ class TransferActivity : AppCompatActivity() {
         binding = ActivityTransferBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-
-        // Disable the button initially
         binding.transfer.isEnabled = false
 
-        // Observe form validation state to enable/disable the transfer button
+        transferViewModel= ViewModelProvider(this).get(TransferViewModel::class.java)
+
         lifecycleScope.launch {
             transferViewModel.isFormValid.collect { isValid ->
                 binding.transfer.isEnabled = isValid
             }
         }
+
+        // Inside Activity
+        if (!this.isNetworkAvailable()) {  // 'this' refers to the Activity's Context
+            showSnackbar(binding.root, "No network connection available")
+            Toast.makeText(this, "No network connection available", Toast.LENGTH_SHORT).show()
+
+        }
+
 
         binding.recipient.addTextChangedListener { text ->
             transferViewModel.onRecipientChanged(text.toString())
@@ -52,6 +76,13 @@ class TransferActivity : AppCompatActivity() {
             val recipientText = binding.recipient.text.toString()
             val amountText = binding.amount.text.toString()
 
+            // Inside Activity
+            if (!this.isNetworkAvailable()) {  // 'this' refers to the Activity's Context
+                showSnackbar(binding.root, "No network connection available")
+                Toast.makeText(this, "No network connection available", Toast.LENGTH_SHORT).show()
+
+            }
+
             if (recipientText.isEmpty() || amountText.isEmpty()) {
                 Toast.makeText(this, "Recipient and amount must not be empty", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -64,7 +95,7 @@ class TransferActivity : AppCompatActivity() {
             transferViewModel.transferState.collectLatest { state ->
                 when (state) {
                     is TransferState.Idle -> {
-                        binding.transfer.isEnabled = true
+                        binding.transfer.isEnabled = false
                         binding.loading.visibility = View.GONE
                     }
                     is TransferState.Loading -> {
